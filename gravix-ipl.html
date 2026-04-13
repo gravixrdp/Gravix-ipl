@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gravix-IPL | Arbitrage Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080a0f;
+    --surface: #0d1117;
+    --card: #111620;
+    --border: #1e2633;
+    --accent: #f0b537;
+    --accent2: #e05c3a;
+    --blue: #3a8fe8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --text: #e8edf5;
+    --muted: #6b7a94;
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === NOISE OVERLAY === */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.5;
+  }
+
+  /* === GRID BACKGROUND === */
+  .grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(240,181,55,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,181,55,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* === GLOW ORBS === */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 600px; height: 600px; top: -200px; left: -200px; background: rgba(240,181,55,0.06); }
+  .orb-2 { width: 500px; height: 500px; bottom: -100px; right: -100px; background: rgba(58,143,232,0.06); }
+
+  /* === NAVBAR === */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 40px;
+    background: rgba(8,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 3px;
+    background: linear-gradient(135deg, var(--accent) 0%, #fff 60%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo span {
+    color: var(--accent2);
+    -webkit-text-fill-color: var(--accent2);
+  }
+
+  .nav-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 2px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    animation: pulse-border 2s infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(240,181,55,0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(240,181,55,0); }
+  }
+
+  /* === MAIN WRAPPER === */
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 120px 24px 80px;
+  }
+
+  /* === HERO === */
+  .hero {
+    text-align: center;
+    margin-bottom: 70px;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0.9;
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(56px, 10vw, 96px);
+    line-height: 0.9;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, #fff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 20px;
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* === CALCULATOR CARD === */
+  .calc-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(240,181,55,0.05);
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+
+  .calc-header {
+    padding: 28px 36px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(135deg, rgba(240,181,55,0.04), transparent);
+  }
+
+  .calc-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(240,181,55,0.3);
+  }
+
+  .calc-header-text h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .calc-header-text p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  .calc-body {
+    padding: 36px;
+  }
+
+  /* === TOTAL STAKE INPUT === */
+  .stake-section {
+    margin-bottom: 36px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  .stake-input-wrap {
+    position: relative;
+    max-width: 320px;
+  }
+
+  .currency-prefix {
+    position: absolute;
+    left: 18px; top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .stake-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    padding: 16px 20px 16px 48px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .stake-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(240,181,55,0.12);
+  }
+
+  .stake-input::placeholder { color: #2a3244; }
+
+  /* === TEAMS GRID === */
+  .teams-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 600px) {
+    .teams-grid { grid-template-columns: 1fr; }
+    nav { padding: 16px 20px; }
+    .calc-body { padding: 24px 20px; }
+  }
+
+  .team-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .team-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .team-card.team-a::before { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .team-card.team-b::before { background: linear-gradient(90deg, var(--blue), #7b5cf5); }
+
+  .team-card:focus-within {
+    border-color: rgba(240,181,55,0.3);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .team-card:focus-within::before { opacity: 1; }
+
+  .team-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+    font-weight: 700;
+  }
+
+  .team-a .team-badge { background: rgba(240,181,55,0.1); color: var(--accent); }
+  .team-b .team-badge { background: rgba(58,143,232,0.1); color: var(--blue); }
+
+  .team-name-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 2px;
+    padding: 6px 0 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 18px;
+  }
+
+  .team-name-input:focus { border-color: var(--accent); }
+  .team-name-input::placeholder { color: #1e2633; font-size: 20px; }
+
+  .input-group { margin-top: 12px; }
+
+  .input-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: var(--font-mono);
+  }
+
+  .field-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .field-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(240,181,55,0.1);
+  }
+
+  .field-input::placeholder { color: #1e2633; font-size: 16px; }
+
+  /* === CALCULATE BUTTON === */
+  .calc-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border: none;
+    border-radius: 10px;
+    color: #080a0f;
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    box-shadow: 0 8px 30px rgba(240,181,55,0.25);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .calc-btn::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+    pointer-events: none;
+  }
+
+  .calc-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(240,181,55,0.4); filter: brightness(1.05); }
+  .calc-btn:active { transform: translateY(0); }
+
+  .calc-btn-sub {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .calc-btn-sub:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* === RESULTS === */
+  #results {
+    display: none;
+    margin-top: 36px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .results-header {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .results-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* === STATUS BANNER === */
+  .status-banner {
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    border: 1px solid;
+  }
+
+  .status-banner.arb {
+    background: rgba(34,197,94,0.08);
+    border-color: rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+
+  .status-banner.no-arb {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+
+  .status-icon { font-size: 24px; }
+
+  /* === METRICS ROW === */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 500px) {
+    .metrics-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  .metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .metric-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .metric-value.positive { color: var(--green); }
+  .metric-value.negative { color: var(--red); }
+  .metric-value.accent { color: var(--accent); }
+
+  /* === TEAM BREAKDOWN === */
+  .breakdown-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 500px) {
+    .breakdown-grid { grid-template-columns: 1fr; }
+  }
+
+  .breakdown-card {
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid;
+  }
+
+  .breakdown-card.team-a-card {
+    background: rgba(240,181,55,0.05);
+    border-color: rgba(240,181,55,0.2);
+  }
+
+  .breakdown-card.team-b-card {
+    background: rgba(58,143,232,0.05);
+    border-color: rgba(58,143,232,0.2);
+  }
+
+  .breakdown-team-name {
+    font-family: var(--font-display);
+    font-size: 18px;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+  }
+
+  .team-a-card .breakdown-team-name { color: var(--accent); }
+  .team-b-card .breakdown-team-name { color: var(--blue); }
+
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row .label { color: var(--muted); }
+  .breakdown-row .val { font-family: var(--font-mono); font-weight: 700; color: var(--text); }
+  .breakdown-row .val.win { color: var(--green); }
+
+  /* === SCENARIO TABLE === */
+  .scenario-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .scenario-title {
+    padding: 14px 20px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .scenario-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 13px;
+    align-items: center;
+    transition: background 0.15s;
+  }
+
+  .scenario-row:hover { background: rgba(255,255,255,0.02); }
+  .scenario-row:last-child { border-bottom: none; }
+  .scenario-row.header { background: rgba(0,0,0,0.2); font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  .scenario-row .s-profit.pos { color: var(--green); font-family: var(--font-mono); font-weight: 700; }
+  .scenario-row .s-profit.neg { color: var(--red); font-family: var(--font-mono); font-weight: 700; }
+  .scenario-row .mono { font-family: var(--font-mono); }
+
+  /* === DISCLAIMER === */
+  .disclaimer {
+    margin-top: 32px;
+    padding: 16px 20px;
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.15);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    text-align: center;
+    animation: fadeUp 0.7s 0.3s ease both;
+  }
+
+  .disclaimer strong { color: var(--red); }
+
+  /* === FOOTER === */
+  footer {
+    text-align: center;
+    padding: 40px 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #2a3244;
+    letter-spacing: 2px;
+    position: relative; z-index: 1;
+  }
+
+  /* === ANIMATIONS === */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* === TICKER === */
+  .ticker-wrap {
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .ticker-wrap::before, .ticker-wrap::after {
+    content: '';
+    position: absolute; top: 0; bottom: 0;
+    width: 80px; z-index: 2;
+  }
+
+  .ticker-wrap::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+  .ticker-wrap::after { right: 0; background: linear-gradient(-90deg, var(--bg), transparent); }
+
+  .ticker {
+    display: flex;
+    gap: 0;
+    animation: ticker 30s linear infinite;
+    white-space: nowrap;
+  }
+
+  .ticker-item {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    padding: 0 30px;
+    text-transform: uppercase;
+  }
+
+  .ticker-item span { color: var(--accent); margin-right: 8px; }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Number formatting helper */
+  .highlight-num { color: var(--accent); }
+
+  /* Tooltip */
+  .tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    background: var(--border);
+    border-radius: 50%;
+    font-size: 10px;
+    color: var(--muted);
+    cursor: help;
+    margin-left: 6px;
+    position: relative;
+    vertical-align: middle;
+  }
+
+  .tooltip-icon:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 125%; left: 50%;
+    transform: translateX(-50%);
+    background: #1a2030;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 11px;
+    letter-spacing: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* loading spinner */
+  .spin {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(240,181,55,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="logo">GRAVIX<span>-</span>IPL</div>
+  <div class="nav-badge">⚡ LIVE CALC</div>
+</nav>
+
+<div class="wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">⚡ IPL 2026 · ARBITRAGE CALCULATOR</div>
+    <h1>LOCK<br>THE PROFIT</h1>
+    <p>Calculate the exact stake to place on both teams so you <strong style="color:var(--accent)">guarantee a return</strong> regardless of the match outcome.</p>
+  </div>
+
+  <!-- LIVE TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker">
+      <div class="ticker-item"><span>▸</span> ARB CALCULATOR</div>
+      <div class="ticker-item"><span>▸</span> ZERO LOSS STRATEGY</div>
+      <div class="ticker-item"><span>▸</span> TWO ACCOUNTS</div>
+      <div class="ticker-item"><span>▸</span> GUARANTEED COVER</div>
+      <div class="ticker-item"><span>▸</span> IPL 2026</div>
+      <div class="ticker-item"><span>▸</span> BOTH OUTCOMES</div>
+      <div class="ticker-item"><span>▸</span> RISK MANAGEMENT</div>
+      <div class="ticker-item"><span>▸</span> SPLIT STAKE</div>
+      <!-- repeat for seamless loop -->
+      <div class="ticker-item"><span>▸</span> ARB CALCULATOR</div>
+      <div class="ticker-item"><span>▸</span> ZERO LOSS STRATEGY</div>
+      <div class="ticker-item"><span>▸</span> TWO ACCOUNTS</div>
+      <div class="ticker-item"><span>▸</span> GUARANTEED COVER</div>
+      <div class="ticker-item"><span>▸</span> IPL 2026</div>
+      <div class="ticker-item"><span>▸</span> BOTH OUTCOMES</div>
+      <div class="ticker-item"><span>▸</span> RISK MANAGEMENT</div>
+      <div class="ticker-item"><span>▸</span> SPLIT STAKE</div>
+    </div>
+  </div>
+
+  <!-- CALCULATOR CARD -->
+  <div class="calc-card">
+    <div class="calc-header">
+      <div class="calc-icon">⚡</div>
+      <div class="calc-header-text">
+        <h2>ARBITRAGE CALCULATOR</h2>
+        <p>ENTER ODDS · GET OPTIMAL SPLIT · LOCK PROFIT</p>
+      </div>
+    </div>
+    <div class="calc-body">
+
+      <!-- TOTAL STAKE -->
+      <div class="stake-section">
+        <div class="section-label">Total Budget (₹) <span class="tooltip-icon" data-tip="Total money you want to invest across both bets">?</span></div>
+        <div class="stake-input-wrap">
+          <span class="currency-prefix">₹</span>
+          <input type="number" class="stake-input" id="totalStake" placeholder="10000" min="1" oninput="autoCalculate()" />
+        </div>
+      </div>
+
+      <!-- TEAMS -->
+      <div class="section-label">Team Details & Odds <span class="tooltip-icon" data-tip="Winning odds shown on the platform (e.g. 2.5 means ₹2.5 return per ₹1 bet)">?</span></div>
+      <div class="teams-grid">
+
+        <!-- TEAM A -->
+        <div class="team-card team-a">
+          <div class="team-badge">🔶 Team A</div>
+          <input type="text" class="team-name-input" id="teamAName" placeholder="TEAM NAME" maxlength="20" oninput="autoCalculate()" />
+          <div class="input-group">
+            <div class="input-label">Winning Odds</div>
+            <input type="number" class="field-input" id="oddsA" placeholder="2.50" step="0.01" min="1.01" oninput="autoCalculate()" />
+          </div>
+        </div>
+
+        <!-- TEAM B -->
+        <div class="team-card team-b">
+          <div class="team-badge">🔷 Team B</div>
+          <input type="text" class="team-name-input" id="teamBName" placeholder="TEAM NAME" maxlength="20" oninput="autoCalculate()" />
+          <div class="input-group">
+            <div class="input-label">Winning Odds</div>
+            <input type="number" class="field-input" id="oddsB" placeholder="3.20" step="0.01" min="1.01" oninput="autoCalculate()" />
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BUTTONS -->
+      <button class="calc-btn" onclick="calculate()">⚡ CALCULATE OPTIMAL SPLIT</button>
+      <button class="calc-btn-sub" onclick="resetAll()">↺ RESET</button>
+
+      <!-- RESULTS -->
+      <div id="results">
+        <div class="results-header">Analysis Results</div>
+
+        <div id="statusBanner" class="status-banner arb">
+          <span class="status-icon" id="statusIcon">✅</span>
+          <span id="statusText">Arbitrage Opportunity Detected!</span>
+        </div>
+
+        <!-- METRICS -->
+        <div class="metrics-row">
+          <div class="metric-box">
+            <div class="metric-label">Arb %</div>
+            <div class="metric-value" id="metricArb">—</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Guaranteed Profit</div>
+            <div class="metric-value" id="metricProfit">—</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">ROI</div>
+            <div class="metric-value" id="metricROI">—</div>
+          </div>
+        </div>
+
+        <!-- BREAKDOWN CARDS -->
+        <div class="breakdown-grid">
+          <div class="breakdown-card team-a-card">
+            <div class="breakdown-team-name" id="nameA-res">TEAM A</div>
+            <div class="breakdown-row">
+              <span class="label">Odds</span>
+              <span class="val" id="oddsA-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Stake</span>
+              <span class="val" id="stakeA-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Return if Wins</span>
+              <span class="val win" id="returnA-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Net Profit</span>
+              <span class="val win" id="profitA-res">—</span>
+            </div>
+          </div>
+          <div class="breakdown-card team-b-card">
+            <div class="breakdown-team-name" id="nameB-res">TEAM B</div>
+            <div class="breakdown-row">
+              <span class="label">Odds</span>
+              <span class="val" id="oddsB-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Stake</span>
+              <span class="val" id="stakeB-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Return if Wins</span>
+              <span class="val win" id="returnB-res">—</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="label">Net Profit</span>
+              <span class="val win" id="profitB-res">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENARIO TABLE -->
+        <div class="scenario-section">
+          <div class="scenario-title">📊 Full Scenario Breakdown</div>
+          <div class="scenario-row header">
+            <div>Scenario</div>
+            <div>Winning Bet</div>
+            <div>Total Returned</div>
+            <div>Net P&L</div>
+          </div>
+          <div class="scenario-row" id="scen1">
+            <div id="scen1-name">—</div>
+            <div class="mono" id="scen1-win">—</div>
+            <div class="mono" id="scen1-total">—</div>
+            <div class="s-profit pos" id="scen1-pl">—</div>
+          </div>
+          <div class="scenario-row" id="scen2">
+            <div id="scen2-name">—</div>
+            <div class="mono" id="scen2-win">—</div>
+            <div class="mono" id="scen2-total">—</div>
+            <div class="s-profit pos" id="scen2-pl">—</div>
+          </div>
+        </div>
+
+      </div><!-- /results -->
+
+    </div><!-- /calc-body -->
+  </div><!-- /calc-card -->
+
+  <!-- DISCLAIMER -->
+  <div class="disclaimer">
+    <strong>⚠️ For Educational & Informational Use Only.</strong><br>
+    This tool calculates mathematical arbitrage splits. Always verify odds in real-time before placing bets.
+    Arbitrage windows can close within seconds. Gravix-IPL is not responsible for any financial outcomes.
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer>GRAVIX-IPL © 2026 · ARBITRAGE CALCULATOR · FOR EDUCATIONAL USE ONLY</footer>
+
+<script>
+  let debounceTimer;
+
+  function fmt(n) {
+    return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function autoCalculate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const total = parseFloat(document.getElementById('totalStake').value);
+      const oddsA = parseFloat(document.getElementById('oddsA').value);
+      const oddsB = parseFloat(document.getElementById('oddsB').value);
+      if (total > 0 && oddsA > 1 && oddsB > 1) calculate();
+    }, 300);
+  }
+
+  function calculate() {
+    const total = parseFloat(document.getElementById('totalStake').value);
+    const oddsA = parseFloat(document.getElementById('oddsA').value);
+    const oddsB = parseFloat(document.getElementById('oddsB').value);
+    const nameA = document.getElementById('teamAName').value.trim() || 'TEAM A';
+    const nameB = document.getElementById('teamBName').value.trim() || 'TEAM B';
+
+    if (!total || total <= 0) { alert('Please enter your total budget.'); return; }
+    if (!oddsA || oddsA <= 1) { alert('Team A odds must be greater than 1.'); return; }
+    if (!oddsB || oddsB <= 1) { alert('Team B odds must be greater than 1.'); return; }
+
+    // Arbitrage percentage
+    const arbPct = (1 / oddsA) + (1 / oddsB);
+
+    // Optimal stakes using Kelly/Arb formula
+    const stakeA = total * (1 / oddsA) / arbPct;
+    const stakeB = total * (1 / oddsB) / arbPct;
+
+    const returnA = stakeA * oddsA;
+    const returnB = stakeB * oddsB;
+
+    const profitA = returnA - total;
+    const profitB = returnB - total;
+
+    const isArb = arbPct < 1;
+
+    // Fill results
+    document.getElementById('nameA-res').textContent = nameA.toUpperCase();
+    document.getElementById('nameB-res').textContent = nameB.toUpperCase();
+
+    document.getElementById('oddsA-res').textContent = 'x' + oddsA.toFixed(2);
+    document.getElementById('oddsB-res').textContent = 'x' + oddsB.toFixed(2);
+
+    document.getElementById('stakeA-res').textContent = fmt(stakeA);
+    document.getElementById('stakeB-res').textContent = fmt(stakeB);
+
+    document.getElementById('returnA-res').textContent = fmt(returnA);
+    document.getElementById('returnB-res').textContent = fmt(returnB);
+
+    const pAEl = document.getElementById('profitA-res');
+    const pBEl = document.getElementById('profitB-res');
+    pAEl.textContent = (profitA >= 0 ? '+' : '') + fmt(profitA);
+    pBEl.textContent = (profitB >= 0 ? '+' : '') + fmt(profitB);
+    pAEl.style.color = profitA >= 0 ? 'var(--green)' : 'var(--red)';
+    pBEl.style.color = profitB >= 0 ? 'var(--green)' : 'var(--red)';
+
+    // Metrics
+    const arbDisplay = (arbPct * 100).toFixed(2) + '%';
+    const metricArbEl = document.getElementById('metricArb');
+    metricArbEl.textContent = arbDisplay;
+    metricArbEl.className = 'metric-value ' + (isArb ? 'positive' : 'negative');
+
+    const guaranteedProfit = isArb ? Math.min(profitA, profitB) : Math.max(profitA, profitB);
+    const profitEl = document.getElementById('metricProfit');
+    profitEl.textContent = (guaranteedProfit >= 0 ? '+' : '') + fmt(guaranteedProfit);
+    profitEl.className = 'metric-value ' + (guaranteedProfit >= 0 ? 'positive' : 'negative');
+
+    const roi = ((guaranteedProfit / total) * 100).toFixed(2) + '%';
+    const roiEl = document.getElementById('metricROI');
+    roiEl.textContent = (guaranteedProfit >= 0 ? '+' : '') + roi;
+    roiEl.className = 'metric-value ' + (guaranteedProfit >= 0 ? 'positive' : 'negative');
+
+    // Status banner
+    const banner = document.getElementById('statusBanner');
+    const statusText = document.getElementById('statusText');
+    const statusIcon = document.getElementById('statusIcon');
+    if (isArb) {
+      banner.className = 'status-banner arb';
+      statusIcon.textContent = '✅';
+      statusText.textContent = 'Arbitrage Opportunity Detected! You can lock in a guaranteed profit.';
+    } else {
+      banner.className = 'status-banner no-arb';
+      statusIcon.textContent = '⚠️';
+      statusText.textContent = `No Arbitrage — Arb% is ${arbDisplay} (needs to be < 100%). These odds don't guarantee profit.`;
+    }
+
+    // Scenario table
+    document.getElementById('scen1-name').textContent = nameA + ' Wins';
+    document.getElementById('scen1-win').textContent = fmt(stakeA) + ' @ x' + oddsA.toFixed(2);
+    document.getElementById('scen1-total').textContent = fmt(returnA);
+    const pl1 = document.getElementById('scen1-pl');
+    pl1.textContent = (profitA >= 0 ? '+' : '') + fmt(profitA);
+    pl1.className = 's-profit ' + (profitA >= 0 ? 'pos' : 'neg');
+
+    document.getElementById('scen2-name').textContent = nameB + ' Wins';
+    document.getElementById('scen2-win').textContent = fmt(stakeB) + ' @ x' + oddsB.toFixed(2);
+    document.getElementById('scen2-total').textContent = fmt(returnB);
+    const pl2 = document.getElementById('scen2-pl');
+    pl2.textContent = (profitB >= 0 ? '+' : '') + fmt(profitB);
+    pl2.className = 's-profit ' + (profitB >= 0 ? 'pos' : 'neg');
+
+    // Show results
+    const resultsEl = document.getElementById('results');
+    resultsEl.style.display = 'block';
+    resultsEl.style.animation = 'none';
+    void resultsEl.offsetWidth;
+    resultsEl.style.animation = 'fadeUp 0.4s ease both';
+
+    // Scroll into view
+    setTimeout(() => resultsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  }
+
+  function resetAll() {
+    ['totalStake','teamAName','teamBName','oddsA','oddsB'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('results').style.display = 'none';
+  }
+</script>
+</body>
+</html>
